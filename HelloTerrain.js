@@ -1,4 +1,10 @@
-
+/**
+ * @fileoverview This file has functions to draw the gl elements and attach the buffers and shaders,
+ * It also has the keyboard functionality set up for interacting with the terrain and for flight simulation
+ * It sets up the terrain and shaders and has calls to animate the envirnment at each frame
+ * @author Simran Patil sppatil2
+ * @reference Course slides
+ **/
 var gl;
 var canvas;
 var shaderProgram;
@@ -49,9 +55,12 @@ function setupTerrainBuffers() {
     var nTerrain=[];
     var colors=[];
     var gridN=6;
-
+    // Initialise the terrrain with teh grid size 
     terrain = new Terrain(gridN);
-    terrain.render(0.6);
+    // Specify the roughness of the terrain
+    // towards 0 is smoother
+    // towards 1 is rougher
+    terrain.render(0.5);
     var numT = terrainFromIteration(gridN, -1,1,-1,1, vTerrain, fTerrain, nTerrain ,terrain.heightMap, colors);
 
     tVertexPositionBuffer = gl.createBuffer();
@@ -84,7 +93,7 @@ function setupTerrainBuffers() {
                 gl.STATIC_DRAW);
     tIndexEdgeBuffer.itemSize = 1;
     tIndexEdgeBuffer.numItems = eTerrain.length;
-
+    // Setup Colors
     vertexColorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
@@ -97,6 +106,7 @@ function setupTerrainBuffers() {
 //-------------------------------------------------------------------------
 function drawTerrain(){
  gl.polygonOffset(0,0);
+ // Bind vertex buffer
  gl.bindBuffer(gl.ARRAY_BUFFER, tVertexPositionBuffer);
  gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, tVertexPositionBuffer.itemSize, 
                          gl.FLOAT, false, 0, 0);
@@ -106,7 +116,7 @@ function drawTerrain(){
  gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 
                            tVertexNormalBuffer.itemSize,
                            gl.FLOAT, false, 0, 0);   
-
+ // Bind color buffer
  gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
  gl.vertexAttribPointer(shaderProgram.vertexColorAttribute,vertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
     
@@ -118,6 +128,7 @@ function drawTerrain(){
 //-------------------------------------------------------------------------
 function drawTerrainEdges(){
  gl.polygonOffset(1,1);
+ // Bind vertex buffer
  gl.bindBuffer(gl.ARRAY_BUFFER, tVertexPositionBuffer);
  gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, tVertexPositionBuffer.itemSize, 
                          gl.FLOAT, false, 0, 0);
@@ -241,20 +252,47 @@ function loadShaderFromDOM(id) {
 }
 
 //---------------------------------------------------------------------------------
-
+/**
+* handleKeyDown
+* @define : Marks that a key is pressed
+* It is a map that stores the value for a key being pressed
+* {boolean}
+* @params : events - The event that a key is pressed
+* @ return : nothing
+**/
 function handleKeyDown(event) {
     currentlyPressed[event.keyCode] = true;
 }
 
+/**
+* handleKeyUp
+* @define : Marks that a key is released
+* It is a map that stores the value for a key being pressed
+* {boolean}
+* @params : events - The event that a key is pressed
+* @ return : nothing
+**/
 function handleKeyUp(event) {
     currentlyPressed[event.keyCode] = false;
 }
 
+/**
+* handleKeys
+* @define : Established the interactivity of the function
+* Left : Rolls the flight to left
+* Right : Rolls the flight to right
+* Up : Pitch the flight Up
+* Down  : Pitch the flight Down
+* F : To make it move faster (Zoom In)
+* S : To make it move slower or zoom out eventually 
+* @params : none
+* @ return : nothing
+**/
 function handleKeys() {
     
     if (currentlyPressed[37]) {
       // Left cursor key
-      quat.rotateZ(myQuat, myQuat, degToRad(-0.5));
+      quat.rotateZ(myQuat, myQuat, degToRad(0.5));
       quat.normalize(myQuat, myQuat);
       quat.multiply(globalQuat, globalQuat, myQuat);
       quat.normalize(globalQuat, globalQuat);
@@ -262,7 +300,7 @@ function handleKeys() {
     }
     if (currentlyPressed[39]) {
       // Right cursor key
-      quat.rotateZ(myQuat, myQuat, degToRad(0.5));
+      quat.rotateZ(myQuat, myQuat, degToRad(-0.5));
       quat.normalize(myQuat, myQuat);
       quat.multiply(globalQuat, globalQuat, myQuat);
       quat.normalize(globalQuat, globalQuat);
@@ -384,17 +422,17 @@ function draw() {
     setMatrixUniforms();
 
     // Set up light parameters
-    var Ia = vec3.fromValues(1.0,1.0,1.0);
+    var Ia = vec3.fromValues(0.0,0.0,0.0);
     var Id = vec3.fromValues(1.0,1.0,1.0);
     var Is = vec3.fromValues(1.0,1.0,1.0);
-    var lightPosEye4 = vec4.fromValues(0.0,0.0,50.0,1.0);
+    var lightPosEye4 = vec4.fromValues(0.2,0.0,50.0,1.0);
     lightPosEye4 = vec4.transformMat4(lightPosEye4,lightPosEye4,mvMatrix);
     //console.log(vec4.str(lightPosEye4))
     var lightPosEye = vec3.fromValues(lightPosEye4[0],lightPosEye4[1],lightPosEye4[2]);
 
     var ka = vec3.fromValues(0.0,0.0,0.0);
-    var kd = vec3.fromValues(0.6,0.6,0.0);
-    var ks = vec3.fromValues(0.4,0.4,0.0);
+    var kd = vec3.fromValues(1.0,1.0,1.0);
+    var ks = vec3.fromValues(1.0,1.0,1.0);
     
     if ((document.getElementById("polygon").checked) || (document.getElementById("wirepoly").checked))
     {
@@ -404,13 +442,13 @@ function draw() {
     }
     
     if(document.getElementById("wirepoly").checked){
-      uploadLightsToShader(lightPosEye,Ia,Id,Is);
+      uploadLightsToShader(lightPosEye,[1.0,1.0,1.0],[0.0,0.0,0.0],[0.0,0.0,0.0]);
       uploadMaterialToShader(ka,kd,ks);
       drawTerrainEdges();
     }
 
     if(document.getElementById("wireframe").checked){
-      uploadLightsToShader([0,1,1],[1.0,1.0,1.0],[0.0,0.0,0.0],[0.0,0.0,0.0]);
+      uploadLightsToShader(lightPosEye,[1.0,1.0,1.0],[0.0,0.0,0.0],[0.0,0.0,0.0]);
       drawTerrainEdges();
     }
     mvPopMatrix();
@@ -420,6 +458,7 @@ function draw() {
 //----------------------------------------------------------------------------------
 function animate() {
   quat.identity(myQuat);
+  // This is to enable motion of the flight
   vec3.scale(trans, viewDir, -1);
   vec3.subtract(eyePt, eyePt, trans);
 }
@@ -427,13 +466,12 @@ function animate() {
 //----------------------------------------------------------------------------------
 function startup() {
   canvas = document.getElementById("myGLCanvas");
-  console.log("Startup");
   gl = createGLContext(canvas);
   setupShaders();
   setupBuffers();
   gl.clearColor(0.8, 0.97, 0.99, 1.0);
   gl.enable(gl.DEPTH_TEST);
-
+  // this handles the key presses
   document.onkeydown = handleKeyDown;
   document.onkeyup = handleKeyUp;
   tick();
